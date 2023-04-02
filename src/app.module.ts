@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ServerModule } from './components/server/server.module';
 import { ConfigModule } from '@nestjs/config';
+import { TunnelModule } from './components/tunnel/tunnel.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -12,7 +12,7 @@ import configuration from './config/configuration';
       ignoreEnvFile: process.env.NODE_ENV === 'production',
       load: [configuration],
     }),
-    ServerModule,
+    TunnelModule,
   ],
   controllers: [AppController],
   providers: [AppService],
