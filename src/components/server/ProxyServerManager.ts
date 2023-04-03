@@ -3,7 +3,7 @@ import { Tunnel } from '../tunnel/types/Tunnel';
 
 class ProxyServerManager {
   private static instance?: ProxyServerManager;
-  private proxyServers: ProxyServer[];
+  private readonly proxyServers: ProxyServer[];
 
   private constructor() {
     this.proxyServers = [];
@@ -21,7 +21,7 @@ class ProxyServerManager {
     return this.proxyServers;
   }
 
-  public async getOrCreateProxyServer(tunnel: Tunnel): Promise<ProxyServer> {
+  public getProxyServer(tunnel: Tunnel): ProxyServer | null {
     const filterResult = this.proxyServers.filter(
       (proxyServer) =>
         proxyServer.getTunnel().inPort === tunnel.inPort ||
@@ -30,6 +30,16 @@ class ProxyServerManager {
 
     if (filterResult.length > 0) {
       return filterResult[0];
+    }
+
+    return null;
+  }
+
+  public async getOrCreateProxyServer(tunnel: Tunnel): Promise<ProxyServer> {
+    const proxyServer = this.getProxyServer(tunnel);
+
+    if (proxyServer) {
+      return proxyServer;
     }
 
     const newProxyServer = new ProxyServer(tunnel);

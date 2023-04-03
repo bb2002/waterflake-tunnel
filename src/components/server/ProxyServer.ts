@@ -26,6 +26,7 @@ class ProxyServer {
           });
         });
       } catch (ex) {
+        console.error(ex);
         reject(ex);
       }
     });
@@ -43,13 +44,18 @@ class ProxyServer {
     return this.tunnel;
   }
 
-  private onInPortServerConnected(socket: Socket) {
+  private onInPortServerConnected = (socket: Socket) => {
+    console.log(
+      'onInPortServerConnected length:',
+      this.idleInServerConnections.length,
+    );
     this.idleInServerConnections.push(socket);
+    socket.on('data', this.onInServerDataTransfer);
+    socket.on('error', this.onInServerError);
+  };
 
-    socket.on('data', this.onDataTransfer);
-  }
-
-  private onOutPortServerConnected(socket: Socket) {
+  private onOutPortServerConnected = (socket: Socket) => {
+    console.log('onOutPortServerConnected');
     if (this.idleInServerConnections.length <= 0) {
       socket.destroy();
     }
@@ -58,9 +64,15 @@ class ProxyServer {
     const idleInServerConnection = this.idleInServerConnections.pop();
     idleInServerConnection.pipe(socket);
     socket.pipe(idleInServerConnection);
-  }
+  };
 
-  private onDataTransfer(data: any) {}
+  private onInServerDataTransfer = (data: any) => {
+    console.log(`onInServerDataTransfer ${data.length}`);
+  };
+
+  private onInServerError = () => {
+    console.log('onInServerError');
+  };
 }
 
 export default ProxyServer;

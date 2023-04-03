@@ -15,8 +15,9 @@ export class TunnelService {
     const { clientId } = loadServerDto;
 
     const tunnel = await this.getTunnelByClientId(clientId);
+
     const proxyServerManager = ProxyServerManager.getInstance();
-    const proxyServer = proxyServerManager.getOrCreateProxyServer(tunnel);
+    return proxyServerManager.getOrCreateProxyServer(tunnel);
   }
 
   async getTunnelByClientId(clientId: string): Promise<Tunnel> {
@@ -30,5 +31,10 @@ export class TunnelService {
       default:
         throw new InternalServerErrorException('Unexpected response status');
     }
+  }
+
+  async getRunningProxyServers() {
+    const proxyServerManager = ProxyServerManager.getInstance();
+    return proxyServerManager.getProxyServers();
   }
 }
