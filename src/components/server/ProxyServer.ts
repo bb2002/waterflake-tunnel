@@ -2,54 +2,80 @@ import { createServer, Server, Socket } from 'net';
 import { Tunnel } from '../tunnel/types/Tunnel';
 
 class ProxyServer {
-  private readonly inPort: number;
-  private readonly outPort: number;
   private inPortServer?: Server;
   private outPortServer?: Server;
 
-  private idleInServerConnections: Socket[] = [];
+  private inServerConnectionId = 0;
+  private inServerConnections: Map<number, Socket> = new Map<
+    number,
+    Socket
+  >();
 
-  constructor(private readonly tunnel: Tunnel) {
-    this.inPort = tunnel.inPort;
-    this.outPort = tunnel.outPort;
-  }
+  private outServerConnectionId = 0;
+  private outServerConnections: Map<number, Socket> = new Map<number, Socket>();
+
+  constructor(private readonly tunnel: Tunnel) {}
 
   async bootstrap(): Promise<void> {
-    this.inPortServer = createServer(this.onInPortServerConnected);
-    this.outPortServer = createServer(this.onOutPortServerConnected);
+    this.inPortServer = createServer(this.onInServerConnected);
+    this.outPortServer = createServer(this.onOutServerConnected);
 
     return new Promise<void>((resolve, reject) => {
       try {
-        this.inPortServer.listen(this.inPort, () => {
-          this.outPortServer.listen(this.outPort, () => {
+        this.inPortServer.listen(this.getInPort(), () => {
+          this.outPortServer.listen(this.getOutPort(), () => {
             resolve();
           });
         });
       } catch (ex) {
-        console.error(ex);
         reject(ex);
       }
     });
   }
 
-  public getInPort() {
-    return this.inPort;
+  private onInServerConnected = (socket: Socket) => {
+    // TODO
+    // Socket 에서 인증 정보를 읽어오는 로직 추가
+    const connectionId = ++this.inServerConnectionId;
+    socket.on('data', this.onInServerDataTransfer);
+    socket.on('error', this.onInServerError);
+    socket.on('end', () => this.onInServerDisconnected(connectionId))
+    this.inServerConnections.set(connectionId, socket);
   }
 
-  public getOutPort() {
-    return this.outPort;
+  private onOutServerConnected = (socket: Socket) => {
+
   }
 
-  public getTunnel() {
-    return this.tunnel;
+  private onInServerDataTransfer = (data: any[]) => {
+
+  }
+
+  private onOutServerDataTransfer = (data: any[]) => {
+
+  }
+
+  private onInServerError = (err: Error) => {
+    // TODO
+    // 로깅하거나, 에러를 기록
+  }
+
+  private onOutServerError = (err: Error) => {
+
+  }
+
+  private onInServerDisconnected = (connectionId: number) => {
+    const connection = this.inServerConnections.get(connectionId);
+    try {
+      connection.destroy()
+    } catch(ex) {}
+
+    this.inServerConnections.delete(connectionId);
   }
 
   private onInPortServerConnected = (socket: Socket) => {
-    console.log(
-      'onInPortServerConnected length:',
-      this.idleInServerConnections.length,
-    );
     this.idleInServerConnections.push(socket);
+    socket.on('end', ());
     socket.on('data', this.onInServerDataTransfer);
     socket.on('error', this.onInServerError);
   };
@@ -66,13 +92,28 @@ class ProxyServer {
     socket.pipe(idleInServerConnection);
   };
 
+  private onInServer;
+
   private onInServerDataTransfer = (data: any) => {
-    console.log(`onInServerDataTransfer ${data.length}`);
+    // TODO
+    // 트래픽 측정하는 로직 추가
   };
 
   private onInServerError = () => {
     console.log('onInServerError');
   };
+
+  public getInPort() {
+    return this.tunnel.inPort;
+  }
+
+  public getOutPort() {
+    return this.tunnel.outPort;
+  }
+
+  public getTunnel() {
+    return this.tunnel;
+  }
 }
 
 export default ProxyServer;
