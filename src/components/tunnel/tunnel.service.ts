@@ -7,17 +7,23 @@ import { Tunnel } from './types/Tunnel';
 import getAxios from '../../common/axios/getAxios';
 import { TunnelNotFoundException } from './exceptions/TunnelNotFound.exception';
 import LoadTunnelDto from './dto/LoadTunnel.dto';
-import ProxyServerManager from '../server/ProxyServerManager';
+import { ProxyServerService } from '../proxy-server/proxy-server.service';
 
 @Injectable()
 export class TunnelService {
+  constructor(private readonly proxyServerService: ProxyServerService) {}
+
   async loadTunnel(loadServerDto: LoadTunnelDto) {
     const { clientId } = loadServerDto;
 
     const tunnel = await this.getTunnelByClientId(clientId);
 
-    const proxyServerManager = ProxyServerManager.getInstance();
-    return proxyServerManager.getOrCreateProxyServer(tunnel);
+    const proxyServer = this.proxyServerService.getProxyServer(tunnel._id);
+    if (proxyServer) {
+      return proxyServer;
+    }
+
+    return this.proxyServerService.createProxyServer(tunnel);
   }
 
   async getTunnelByClientId(clientId: string): Promise<Tunnel> {
@@ -33,8 +39,7 @@ export class TunnelService {
     }
   }
 
-  async getRunningProxyServers() {
-    const proxyServerManager = ProxyServerManager.getInstance();
-    return proxyServerManager.getProxyServers();
+  getRunningProxyServers() {
+    return this.proxyServerService.getAllProxyServers();
   }
 }
