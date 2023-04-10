@@ -5,6 +5,7 @@ import { Tunnel } from '../tunnel/types/Tunnel';
 @Injectable()
 export class ProxyServerService {
   private proxyServers: Map<number, ProxyServer> = new Map();
+  private transferredPacketSizes: Map<number, number> = new Map();
 
   async createProxyServer(tunnel: Tunnel) {
     const proxyServer = new ProxyServer(tunnel, this);
@@ -22,7 +23,18 @@ export class ProxyServerService {
     return [...this.proxyServers.values()];
   }
 
-  async onPacketTransferred(tunnel: Tunnel, packetSize: number) {}
+  async onPacketTransferred(tunnel: Tunnel, packetSize: number) {
+    const { _id } = tunnel;
 
-  async onProxyServerError(tunnel: Tunnel, error: Error) {}
+    if (tunnel._id in this.transferredPacketSizes) {
+      const obj = this.transferredPacketSizes.get(_id);
+      this.transferredPacketSizes.set(_id, packetSize + obj);
+    } else {
+      this.transferredPacketSizes.set(_id, packetSize);
+    }
+  }
+
+  async onProxyServerError(tunnel: Tunnel, error: Error) {
+    console.error('ProxyServerError:', tunnel, error);
+  }
 }
