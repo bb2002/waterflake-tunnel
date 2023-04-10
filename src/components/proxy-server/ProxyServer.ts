@@ -13,6 +13,7 @@ export default class ProxyServer {
 
   private inServerConnectionId = 0;
   private inServerConnections: Map<number, Socket> = new Map<number, Socket>();
+  private isAuthenticated = false;
 
   async bootstrap(): Promise<void> {
     this.inPortServer = createServer(this.onInServerConnected);
@@ -32,13 +33,39 @@ export default class ProxyServer {
   }
 
   private onInServerConnected = (socket: Socket) => {
-    // TODO
-    // Socket 에서 인증 정보를 읽어오는 로직 추가
-    const connectionId = ++this.inServerConnectionId;
-    socket.on('data', this.onInServerDataTransfer);
-    socket.on('error', this.onInServerError);
-    socket.on('end', () => this.onInServerDisconnected(connectionId));
-    this.inServerConnections.set(connectionId, socket);
+    setTimeout(() => {
+      if (!this.isAuthenticated) {
+        // 시간 내로 인증하지 못하면 소켓 폐기
+        socket.destroy();
+      }
+    }, 5000);
+
+    socket.addListener('data', (data: any[]) => {
+      const str = String(data);
+
+      try {
+        const obj = JSON.parse(str);
+
+        if (
+          obj.clientId === this.tunnel.clientId &&
+          obj.clientSecret === this.tunnel.clientSecret
+        ) {
+          this.isAuthenticated = true;
+          socket.removeAllListeners('data');
+          socket.write('200');
+
+          const connectionId = ++this.inServerConnectionId;
+          socket.on('data', this.onInServerDataTransfer);
+          socket.on('error', this.onInServerError);
+          socket.on('end', () => this.onInServerDisconnected(connectionId));
+          this.inServerConnections.set(connectionId, socket);
+        } else {
+          socket.write('402');
+        }
+      } catch (ex) {
+        socket.write('500');
+      }
+    });
   };
 
   private onOutServerConnected = (socket: Socket) => {
