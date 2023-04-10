@@ -39,6 +39,8 @@ export class TunnelService {
     }
   }
 
+  async getAllTunnels(): Promise<Tunnel> {}
+
   getRunningProxyServers() {
     return this.proxyServerService.getAllProxyServers();
   }
