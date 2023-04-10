@@ -1,8 +1,9 @@
 import {
   HttpStatus,
   Injectable,
-  InternalServerErrorException, Logger
-} from "@nestjs/common";
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { Tunnel } from './types/Tunnel';
 import getAxios from '../../common/axios/getAxios';
 import { TunnelNotFoundException } from './exceptions/TunnelNotFound.exception';

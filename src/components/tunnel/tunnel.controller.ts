@@ -10,12 +10,14 @@ export class TunnelController {
   @UseGuards(RegionAccessTokenGuard)
   @Post('load')
   async loadServer(@Body() loadTunnelDto: LoadTunnelDto) {
-    return this.tunnelService.loadTunnel(loadTunnelDto);
+    return (await this.tunnelService.loadTunnel(loadTunnelDto)).getTunnel();
   }
 
   @UseGuards(RegionAccessTokenGuard)
   @Get('/')
   async getRunningServers() {
-    return this.tunnelService.getRunningProxyServers();
+    return this.tunnelService
+      .getRunningProxyServers()
+      .map((server) => server.getTunnel());
   }
 }

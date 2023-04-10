@@ -81,6 +81,10 @@ export default class ProxyServer {
     return this.tunnel.outPort;
   }
 
+  public getIdleConnectionCount() {
+    return this.inServerConnections.size;
+  }
+
   public getTunnel() {
     return this.tunnel;
   }
