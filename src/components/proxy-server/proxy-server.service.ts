@@ -19,6 +19,10 @@ export class ProxyServerService {
     return proxyServer;
   }
 
+  async onCommand() {
+
+  }
+
   getProxyServer(tunnelId: number) {
     return this.proxyServers.get(tunnelId);
   }
