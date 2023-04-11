@@ -43,7 +43,7 @@ export default class PipeServer {
         socket.on('end', () => this.onInServerDisconnected(connectionId));
       })
       .catch((errMsg) => {
-        socket.write(errMsg, () => {
+        socket.write(errMsg?.message ?? 'Unknown Error', () => {
           socket.destroy();
         });
       });
@@ -65,5 +65,9 @@ export default class PipeServer {
 
   public get outPort() {
     return this.tunnel.outPort;
+  }
+
+  public get getTunnel() {
+    return this.tunnel;
   }
 }

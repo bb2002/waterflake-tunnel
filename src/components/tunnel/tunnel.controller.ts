@@ -2,22 +2,26 @@ import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import LoadTunnelDto from './dto/LoadTunnel.dto';
 import { RegionAccessTokenGuard } from '../../common/guards/region-access-token.guard';
 import { TunnelService } from './tunnel.service';
+import { PipeManagerService } from '../pipe-manager/pipe-manager.service';
 
 @Controller('server')
 export class TunnelController {
-  constructor(private readonly tunnelService: TunnelService) {}
+  constructor(
+    private readonly tunnelService: TunnelService,
+    private readonly pipeManagerService: PipeManagerService,
+  ) {}
 
   @UseGuards(RegionAccessTokenGuard)
   @Post('load')
   async loadServer(@Body() loadTunnelDto: LoadTunnelDto) {
-    return (await this.tunnelService.loadTunnel(loadTunnelDto)).getTunnel();
+    return (await this.tunnelService.loadTunnel(loadTunnelDto)).getTunnel;
   }
 
   @UseGuards(RegionAccessTokenGuard)
   @Get('/')
   async getRunningServers() {
-    return this.tunnelService
-      .getRunningProxyServers()
-      .map((server) => server.getTunnel());
+    return this.pipeManagerService
+      .getRunningPipeServers()
+      .map((server) => server.getTunnel);
   }
 }

@@ -8,26 +8,26 @@ import { Tunnel } from './types/Tunnel';
 import getAxios from '../../common/axios/getAxios';
 import { TunnelNotFoundException } from './exceptions/TunnelNotFound.exception';
 import LoadTunnelDto from './dto/LoadTunnel.dto';
-import { ProxyServerService } from '../proxy-server/proxy-server.service';
 import { Timeout } from '@nestjs/schedule';
+import { PipeManagerService } from '../pipe-manager/pipe-manager.service';
+import PipeServer from '../pipe-manager/pipe-server/PipeServer';
 
 @Injectable()
 export class TunnelService {
   private readonly logger = new Logger(TunnelService.name);
 
-  constructor(private readonly proxyServerService: ProxyServerService) {}
+  constructor(private readonly pipeManagerService: PipeManagerService) {}
 
-  async loadTunnel(loadServerDto: LoadTunnelDto) {
+  async loadTunnel(loadServerDto: LoadTunnelDto): Promise<PipeServer> {
     const { clientId } = loadServerDto;
-
     const tunnel = await this.getTunnelByClientId(clientId);
 
-    const proxyServer = this.proxyServerService.getProxyServer(tunnel._id);
-    if (proxyServer) {
-      return proxyServer;
+    const pipeServer = this.pipeManagerService.getRunningPipeServer(tunnel._id);
+    if (!pipeServer) {
+      return this.pipeManagerService.createPipeServer(tunnel);
     }
 
-    return this.proxyServerService.createProxyServer(tunnel);
+    return pipeServer;
   }
 
   async getTunnelByClientId(clientId: string): Promise<Tunnel> {
@@ -52,10 +52,6 @@ export class TunnelService {
       default:
         throw new InternalServerErrorException('Unexpected response status');
     }
-  }
-
-  getRunningProxyServers() {
-    return this.proxyServerService.getAllProxyServers();
   }
 
   @Timeout(500)
