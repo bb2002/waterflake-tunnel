@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Tunnel } from '../tunnel/types/Tunnel';
 import { Socket } from 'net';
 import PipeServer from './pipe-server/PipeServer';
+import { Cron } from '@nestjs/schedule';
+import { format } from 'date-fns';
+import getAxios from '../../common/axios/getAxios';
 
 @Injectable()
 export class PipeManagerService {
@@ -52,5 +55,56 @@ export class PipeManagerService {
         } catch (ex) {}
       });
     });
+  }
+
+  appendTransferredPacketSize(tunnelId: number, size: number) {
+    if (tunnelId in this.transferredPacketSizes) {
+      const obj = this.transferredPacketSizes.get(tunnelId);
+      this.transferredPacketSizes.set(tunnelId, size + obj);
+    } else {
+      this.transferredPacketSizes.set(tunnelId, size);
+    }
+  }
+
+  loggingSocketError(error: Error) {
+    this.logger.error(error);
+  }
+
+  @Cron('5 0,10,20,30,40,50 * * * *')
+  private async sendTrafficStatistics() {
+    const servers = this.getRunningPipeServers();
+    const now = new Date();
+
+    const data = servers.map((proxyServer) => {
+      const tunnel = proxyServer.getTunnel;
+      const transferredPacketSize = this.transferredPacketSizes.get(tunnel._id);
+      return {
+        tunnelClientId: tunnel.clientId,
+        value: transferredPacketSize,
+        reportDate: format(now, 'yyyy-MM-dd HH:mm:00'),
+      };
+    });
+
+    // 초기화 및 데이터 전송
+    this.transferredPacketSizes = new Map();
+    await getAxios().post('/statistics/traffic', data);
+  }
+
+  @Cron('10 0,10,20,30,40,50 * * * *')
+  private async sendConnectionStatistics() {
+    const proxyServers = this.getRunningPipeServers();
+    const now = new Date();
+
+    const data = proxyServers.map((proxyServer) => {
+      const tunnel = proxyServer.getTunnel;
+      const connectionCount = proxyServer.idleInServerConnectionCount;
+      return {
+        tunnelClientId: tunnel.clientId,
+        value: connectionCount,
+        reportDate: format(now, 'yyyy-MM-dd HH:mm:00'),
+      };
+    });
+
+    await getAxios().post('/statistics/connection', data);
   }
 }

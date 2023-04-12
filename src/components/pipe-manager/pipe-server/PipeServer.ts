@@ -49,15 +49,49 @@ export default class PipeServer {
       });
   };
 
-  private onOutServerConnected = (socket: Socket) => {};
+  private onOutServerConnected = (socket: Socket) => {
+    const keys = [...this.inServerConnections.keys()];
+    if (keys.length === 0) {
+      // 유휴 커넥션이 없는 경우 소켓 폐기
+      socket.destroy();
+      return;
+    }
 
-  private onInServerDataTransfer = (data: any[]) => {};
+    // 유휴 커넥션 중 하나를 선택
+    const connectionId = keys[0];
+    const inServerSocket = this.inServerConnections.get(connectionId);
+    this.inServerConnections.delete(connectionId);
+    if (!inServerSocket) {
+      socket.destroy();
+      return;
+    }
 
-  private onOutServerDataTransfer = (data: any[]) => {};
+    // 커넥션 연결
+    inServerSocket.pipe(socket);
+    socket.pipe(inServerSocket);
+  };
 
-  private onServerError = (error: Error) => {};
+  private onInServerDataTransfer = (data: any[]) => {
+    // 전송된 데이터 크기를 기록
+    this.pipeManagerService.appendTransferredPacketSize(
+      this.tunnel._id,
+      data.length,
+    );
+  };
 
-  private onInServerDisconnected = (connectionId: number) => {};
+  private onServerError = (error: Error) => {
+    this.pipeManagerService.loggingSocketError(error);
+  };
+
+  private onInServerDisconnected = (connectionId: number) => {
+    try {
+      const socket = this.inServerConnections.get(connectionId);
+      if (socket) {
+        socket.destroy();
+      }
+      this.inServerConnections.delete(connectionId);
+    } catch(ex) {}
+  };
 
   public get inPort() {
     return this.tunnel.inPort;
@@ -69,5 +103,9 @@ export default class PipeServer {
 
   public get getTunnel() {
     return this.tunnel;
+  }
+
+  public get idleInServerConnectionCount() {
+    return this.inServerConnections.size;
   }
 }
