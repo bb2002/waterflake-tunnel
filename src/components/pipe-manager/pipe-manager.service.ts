@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Tunnel } from '../tunnel/types/Tunnel';
 import { Socket } from 'net';
 import PipeServer from './pipe-server/PipeServer';
-import { Cron } from '@nestjs/schedule';
+import { Cron, Interval } from '@nestjs/schedule';
 import { format } from 'date-fns';
 import getAxios from '../../common/axios/getAxios';
 
@@ -72,14 +72,14 @@ export class PipeManagerService {
 
   @Cron('5 0,10,20,30,40,50 * * * *')
   private async sendTrafficStatistics() {
-    const servers = this.getRunningPipeServers();
+    const tunnelIDs = [...this.transferredPacketSizes.keys()];
     const now = new Date();
 
-    const data = servers.map((proxyServer) => {
-      const tunnel = proxyServer.getTunnel;
-      const transferredPacketSize = this.transferredPacketSizes.get(tunnel._id);
+    const data = tunnelIDs.map((tunnelId) => {
+      const tunnel = this.getRunningPipeServer(tunnelId);
+      const transferredPacketSize = this.transferredPacketSizes.get(tunnelId);
       return {
-        tunnelClientId: tunnel.clientId,
+        tunnelClientId: tunnel.getTunnel.clientId,
         value: transferredPacketSize,
         reportDate: format(now, 'yyyy-MM-dd HH:mm:00'),
       };
@@ -87,6 +87,7 @@ export class PipeManagerService {
 
     // 초기화 및 데이터 전송
     this.transferredPacketSizes = new Map();
+
     await getAxios().post('/statistics/traffic', data);
   }
 
