@@ -15,4 +15,16 @@ export class TCPServer {
       });
     });
   }
+
+  close(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.rawServer.close((error: Error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
 }
