@@ -1,67 +1,54 @@
-import { PipeManagerService } from '../pipe-manager.service';
 import { Tunnel } from '../../tunnel/types/Tunnel';
-import { createServer, Server, Socket } from 'net';
+import { Socket } from 'net';
+import { TCPServer } from 'src/common/net-server/tcp-server';
+import { Listeners } from './Listeners';
 
 export default class PipeServer {
-  private inServer?: Server;
-  private outServer?: Server;
   private inServerConnections: Map<number, Socket> = new Map();
   private inServerConnectionId = 0;
 
-  public constructor(
-    private readonly tunnel: Tunnel,
-    private readonly pipeManagerService: PipeManagerService,
-  ) {}
+  public constructor(private readonly tunnel: Tunnel) {}
 
-  async startUp(): Promise<void> {
-    this.inServer = createServer(this.onInServerConnected);
-    this.outServer = createServer(this.onOutServerConnected);
+  async startUp (listeners: Listeners): Promise<void> {
+    const inServer = TCPServer.createServer(
+      (socket: Socket) => this.onInServerConnected(socket, listeners)
+    );
+    const outServer = TCPServer.createServer(this.onOutServerConnected);
 
-    return new Promise<void>((resolve, reject) => {
-      try {
-        this.inServer.listen(this.inPort, () => {
-          this.outServer.listen(this.outPort, () => {
-            resolve();
-          });
-        });
-      } catch (ex) {
-        reject(ex);
-      }
-    });
+    await inServer.listen(this.inPort);
+    await outServer.listen(this.outPort);
   }
 
   async shutdown() {}
 
-  private onInServerConnected = (socket: Socket) => {
-    this.pipeManagerService
-      .authenticate(this.tunnel, socket)
-      .then(() => {
-        const connectionId = ++this.inServerConnectionId;
-        this.inServerConnections.set(connectionId, socket);
-        socket.on('data', this.onInServerDataTransfer);
-        socket.on('error', this.onServerError);
-        socket.on('end', () => this.onInServerDisconnected(connectionId));
-      })
-      .catch((errMsg) => {
-        socket.write(errMsg?.message ?? 'Unknown Error', () => {
-          socket.destroy();
-        });
+  private onInServerConnected = async (
+    socket: Socket,
+    listeners: Listeners,
+  ) => {
+    try {
+      await listeners.onConnected(socket);
+  
+      const connectionId = this.createConnectionId();
+      this.inServerConnections.set(connectionId, socket);
+      socket.on('data', listeners.onDataReceived);
+      socket.on('error', listeners.onError);
+      socket.on('end', () => this.onInServerDisconnected(connectionId));
+    } catch (errMsg) {
+      socket.write(errMsg?.message ?? 'Unknown Error', () => {
+        socket.destroy();
       });
+    }
   };
 
-  private onOutServerConnected = (socket: Socket) => {
-    const keys = [...this.inServerConnections.keys()];
-    if (keys.length === 0) {
-      // 유휴 커넥션이 없는 경우 소켓 폐기
-      socket.destroy();
-      return;
-    }
+  private createConnectionId() {
+    this.inServerConnectionId += 1;
+    return this.inServerConnectionId;
+  }
 
-    // 유휴 커넥션 중 하나를 선택
-    const connectionId = keys[0];
-    const inServerSocket = this.inServerConnections.get(connectionId);
-    this.inServerConnections.delete(connectionId);
+  private onOutServerConnected = (socket: Socket) => {
+    const inServerSocket = this.getInServerSocket();
     if (!inServerSocket) {
+      // 유휴 커넥션이 없는 경우 소켓 폐기
       socket.destroy();
       return;
     }
@@ -71,17 +58,26 @@ export default class PipeServer {
     socket.pipe(inServerSocket);
   };
 
-  private onInServerDataTransfer = (data: any[]) => {
-    // 전송된 데이터 크기를 기록
-    this.pipeManagerService.appendTransferredPacketSize(
-      this.tunnel._id,
-      data.length,
-    );
-  };
+  private getInServerSocket(): Socket | null {
+    if (!this.isConnectionExist())
+      return null;
 
-  private onServerError = (error: Error) => {
-    this.pipeManagerService.loggingSocketError(error);
-  };
+    const connectionId = this.getConnectionId();
+    const inServerSocket = this.inServerConnections.get(connectionId);
+    this.inServerConnections.delete(connectionId);
+
+    return inServerSocket;
+  }
+
+  private isConnectionExist() {
+    const keys = [...this.inServerConnections.keys()];
+    return keys.length === 0;
+  }
+
+  private getConnectionId() {
+    // 유휴 커넥션 중 하나를 선택
+    return [...this.inServerConnections.keys()][0];
+  }
 
   private onInServerDisconnected = (connectionId: number) => {
     try {

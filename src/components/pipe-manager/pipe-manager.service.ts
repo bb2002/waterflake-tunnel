@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Tunnel } from '../tunnel/types/Tunnel';
 import { Socket } from 'net';
 import PipeServer from './pipe-server/PipeServer';
-import { Cron, Interval } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { format } from 'date-fns';
 import getAxios from '../../common/axios/getAxios';
 
@@ -13,21 +13,17 @@ export class PipeManagerService {
   private readonly logger = new Logger(PipeManagerService.name);
 
   async createPipeServer(tunnel: Tunnel) {
-    const server = new PipeServer(tunnel, this);
-    await server.startUp();
+    const server = new PipeServer(tunnel);
+    await server.startUp({
+      onConnected: this.authenticate(tunnel),
+      onDataReceived: this.onInServerDataTransfer(tunnel),
+      onError: this.onServerError,
+    });
     this.pipeServer.set(tunnel._id, server);
     return server;
   }
 
-  getRunningPipeServer(tunnelId: number) {
-    return this.pipeServer.get(tunnelId);
-  }
-
-  getRunningPipeServers() {
-    return [...this.pipeServer.values()];
-  }
-
-  async authenticate(tunnel: Tunnel, socket: Socket) {
+  private authenticate = (tunnel: Tunnel) => (socket: Socket) => {
     return new Promise<void>((resolve, reject) => {
       const handler = setTimeout(() => {
         reject(new Error('Login time out.'));
@@ -57,17 +53,27 @@ export class PipeManagerService {
     });
   }
 
-  appendTransferredPacketSize(tunnelId: number, size: number) {
-    if (tunnelId in this.transferredPacketSizes) {
-      const obj = this.transferredPacketSizes.get(tunnelId);
-      this.transferredPacketSizes.set(tunnelId, size + obj);
+  private onInServerDataTransfer = (tunnel: Tunnel) => (data: any[]) => {
+    // 전송된 데이터 크기를 기록
+    const size = data.length;
+    if (tunnel._id in this.transferredPacketSizes) {
+      const obj = this.transferredPacketSizes.get(tunnel._id);
+      this.transferredPacketSizes.set(tunnel._id, size + obj);
     } else {
-      this.transferredPacketSizes.set(tunnelId, size);
+      this.transferredPacketSizes.set(tunnel._id, size);
     }
+  };
+
+  private onServerError = (error: Error) => {
+    this.logger.error(error);
+  };
+
+  getRunningPipeServer(tunnelId: number) {
+    return this.pipeServer.get(tunnelId);
   }
 
-  loggingSocketError(error: Error) {
-    this.logger.error(error);
+  getRunningPipeServers() {
+    return [...this.pipeServer.values()];
   }
 
   @Cron('5 0,10,20,30,40,50 * * * *')
