@@ -4,27 +4,33 @@ import { TCPServer } from 'src/common/net-server/tcp-server';
 import { Listeners } from './Listeners';
 
 export default class PipeServer {
+  private inServer: TCPServer;
+  private outServer: TCPServer;
   private inServerConnections: Map<number, Socket> = new Map();
   private inServerConnectionId = 0;
 
   public constructor(private readonly tunnel: Tunnel) {}
 
   async startUp (listeners: Listeners): Promise<void> {
-    const inServer = TCPServer.createServer(
-      (socket: Socket) => this.onInServerConnected(socket, listeners)
-    );
-    const outServer = TCPServer.createServer(this.onOutServerConnected);
+    this.inServer = TCPServer.createServer(this.onInServerConnected(listeners));
+    this.outServer = TCPServer.createServer(this.onOutServerConnected);
 
-    await inServer.listen(this.inPort);
-    await outServer.listen(this.outPort);
+    await this.inServer.listen(this.inPort);
+    await this.outServer.listen(this.outPort);
   }
 
-  async shutdown() {}
+  async shutdown() {
+    this.inServerConnections.forEach((socket: Socket, id: number) => {
+      this.inServerConnections.delete(id);
+      if (socket) {
+        socket.destroy();
+      }
+    }, this);
+    await this.inServer.close();
+    await this.outServer.close();
+  }
 
-  private onInServerConnected = async (
-    socket: Socket,
-    listeners: Listeners,
-  ) => {
+  private onInServerConnected = (listeners: Listeners) => async (socket: Socket) => {
     try {
       await listeners.onConnected(socket);
   
