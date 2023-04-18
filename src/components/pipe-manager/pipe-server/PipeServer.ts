@@ -11,7 +11,7 @@ export default class PipeServer {
 
   public constructor(private readonly tunnel: Tunnel) {}
 
-  async startUp (listeners: Listeners): Promise<void> {
+  async startUp(listeners: Listeners): Promise<void> {
     this.inServer = TCPServer.createServer(this.onInServerConnected(listeners));
     this.outServer = TCPServer.createServer(this.onOutServerConnected);
 
@@ -30,21 +30,22 @@ export default class PipeServer {
     await this.outServer.close();
   }
 
-  private onInServerConnected = (listeners: Listeners) => async (socket: Socket) => {
-    try {
-      await listeners.onConnected(socket);
-  
-      const connectionId = this.createConnectionId();
-      this.inServerConnections.set(connectionId, socket);
-      socket.on('data', listeners.onDataReceived);
-      socket.on('error', listeners.onError);
-      socket.on('end', () => this.onInServerDisconnected(connectionId));
-    } catch (errMsg) {
-      socket.write(errMsg?.message ?? 'Unknown Error', () => {
-        socket.destroy();
-      });
-    }
-  };
+  private onInServerConnected =
+    (listeners: Listeners) => async (socket: Socket) => {
+      try {
+        await listeners.onConnected(socket);
+
+        const connectionId = this.createConnectionId();
+        this.inServerConnections.set(connectionId, socket);
+        socket.on('data', listeners.onDataReceived);
+        socket.on('error', listeners.onError);
+        socket.on('end', () => this.onInServerDisconnected(connectionId));
+      } catch (errMsg) {
+        socket.write(errMsg?.message ?? 'Unknown Error', () => {
+          socket.destroy();
+        });
+      }
+    };
 
   private createConnectionId() {
     this.inServerConnectionId += 1;
@@ -65,8 +66,7 @@ export default class PipeServer {
   };
 
   private getInServerSocket(): Socket | null {
-    if (!this.isConnectionExist())
-      return null;
+    if (!this.isConnectionExist()) return null;
 
     const connectionId = this.getConnectionId();
     const inServerSocket = this.inServerConnections.get(connectionId);
@@ -92,7 +92,7 @@ export default class PipeServer {
         socket.destroy();
       }
       this.inServerConnections.delete(connectionId);
-    } catch(ex) {}
+    } catch (ex) {}
   };
 
   public get inPort() {
