@@ -51,7 +51,7 @@ export class PipeManagerService {
         } catch (ex) {}
       });
     });
-  }
+  };
 
   private onInServerDataTransfer = (tunnel: Tunnel) => (data: any[]) => {
     // 전송된 데이터 크기를 기록

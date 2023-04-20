@@ -39,7 +39,7 @@ export default class PipeServer {
         this.inServerConnections.set(connectionId, socket);
         socket.on('data', listeners.onDataReceived);
         socket.on('error', listeners.onError);
-        socket.on('end', () => this.onInServerDisconnected(connectionId));
+        socket.on('close', () => this.onInServerDisconnected(connectionId));
       } catch (errMsg) {
         socket.write(errMsg?.message ?? 'Unknown Error', () => {
           socket.destroy();
@@ -77,7 +77,7 @@ export default class PipeServer {
 
   private isConnectionExist() {
     const keys = [...this.inServerConnections.keys()];
-    return keys.length === 0;
+    return keys.length !== 0;
   }
 
   private getConnectionId() {
