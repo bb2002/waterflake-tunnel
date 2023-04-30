@@ -30,6 +30,15 @@ export class TunnelService {
     return pipeServer;
   }
 
+  async shutdownTunnel(clientId: string) {
+    const tunnel = await this.getTunnelByClientId(clientId);
+
+    const pipeServer = this.pipeManagerService.getRunningPipeServer(tunnel._id);
+    if (pipeServer) {
+      await pipeServer.shutdown();
+    }
+  }
+
   async getTunnelByClientId(clientId: string): Promise<Tunnel> {
     const response = await getAxios().get(`/regions/tunnel/${clientId}`);
 

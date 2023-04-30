@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import LoadTunnelDto from './dto/LoadTunnel.dto';
 import { RegionAccessTokenGuard } from '../../common/guards/region-access-token.guard';
 import { TunnelService } from './tunnel.service';
@@ -15,6 +23,12 @@ export class TunnelController {
   @Post('load')
   async loadServer(@Body() loadTunnelDto: LoadTunnelDto) {
     return (await this.tunnelService.loadTunnel(loadTunnelDto)).getTunnel;
+  }
+
+  @UseGuards(RegionAccessTokenGuard)
+  @Delete('/shutdown/:clientId')
+  async shutdownServer(@Param('clientId') clientId) {
+    return this.tunnelService.shutdownTunnel(clientId);
   }
 
   @UseGuards(RegionAccessTokenGuard)
