@@ -36,6 +36,7 @@ export class TunnelService {
     const pipeServer = this.pipeManagerService.getRunningPipeServer(tunnel._id);
     if (pipeServer) {
       await pipeServer.shutdown();
+      this.pipeManagerService.deletePipeServer(tunnel._id);
     }
   }
 

@@ -23,6 +23,10 @@ export class PipeManagerService {
     return server;
   }
 
+  deletePipeServer(tunnelId: number) {
+    this.pipeServer.delete(tunnelId);
+  }
+
   private authenticate = (tunnel: Tunnel) => (socket: Socket) => {
     return new Promise<void>((resolve, reject) => {
       const handler = setTimeout(() => {
